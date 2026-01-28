@@ -318,6 +318,7 @@ class DockerHealthMonitor:
     def check_and_notify_state_change(self, container, current_status, current_health):
         """
         Check if container state changed and send notification.
+        Sends notification for ANY state change (previous != current).
 
         Args:
             container: Docker container object
@@ -330,23 +331,24 @@ class DockerHealthMonitor:
         prev_status = previous_state.get("status")
         prev_health = previous_state.get("health")
 
-        # Check for state changes
+        # Check for ANY state change
         state_changed = False
-        change_message = ""
-
-        # Check status change (running <-> exited, etc.)
-        if prev_status != current_status and prev_status is not None:
-            state_changed = True
-            change_message = f"Container status changed from `{prev_status}` to `{current_status}`"
-
-        # Check health change
-        elif prev_health != current_health and prev_health is not None:
-            state_changed = True
-            change_message = f"Container health changed from `{prev_health}` to `{current_health}`"
+        change_messages = []
 
         # First time seeing this container
-        elif prev_status is None:
-            change_message = f"Container started monitoring with status: `{current_status}`, health: `{current_health}`"
+        if prev_status is None:
+            state_changed = True
+            change_messages.append(f"Container started monitoring with status: `{current_status}`, health: `{current_health}`")
+
+        # Check status change
+        if prev_status is not None and prev_status != current_status:
+            state_changed = True
+            change_messages.append(f"Status changed from `{prev_status}` to `{current_status}`")
+
+        # Check health change (independent of status change)
+        if prev_health is not None and prev_health != current_health:
+            state_changed = True
+            change_messages.append(f"Health changed from `{prev_health}` to `{current_health}`")
 
         # Update previous state
         self.previous_states[container_key] = {
@@ -354,12 +356,15 @@ class DockerHealthMonitor:
             "health": current_health
         }
 
-        # Send notification if state changed or first time
-        if state_changed and change_message:
+        # Send notification if ANY change detected
+        if state_changed:
             container_name = container.name
             labels = container.attrs.get('Config', {}).get('Labels', {})
             service_name = labels.get('com.docker.compose.service', 'N/A')
             project_name = labels.get('com.docker.compose.project', 'N/A')
+
+            # Combine all change messages
+            change_message = "\n".join(change_messages)
 
             message = (
                 f"Container: *{container_name}*\n"
@@ -368,8 +373,8 @@ class DockerHealthMonitor:
                 f"{change_message}"
             )
 
-            # Determine notification title based on state
-            if current_status == "exited" or current_health == "unhealthy":
+            # Determine notification title based on current state
+            if current_status == "exited" or current_status == "stopped" or current_health == "unhealthy":
                 title = "🚨 Container Issue Detected"
             elif current_status == "running" and current_health == "healthy":
                 title = "✅ Container Recovered"
