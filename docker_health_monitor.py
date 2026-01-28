@@ -134,6 +134,11 @@ class NotificationManager:
         self.slack_config = config.get("slack", {})
         self.telegram_config = config.get("telegram", {})
 
+        # Debug logging
+        logger.info(f"NotificationManager initialized: enabled={self.enabled}, "
+                   f"slack_enabled={self.slack_config.get('enabled', False)}, "
+                   f"telegram_enabled={self.telegram_config.get('enabled', False)}")
+
     def send_notification(self, title, message):
         """
         Send notification to all enabled platforms.
@@ -143,14 +148,19 @@ class NotificationManager:
             message: Notification message
         """
         if not self.enabled:
+            logger.debug(f"Notifications disabled, skipping notification: {title}")
             return
+
+        logger.info(f"Sending notification: {title}")
 
         # Send to Slack if enabled
         if self.slack_config.get("enabled", False):
+            logger.info("Sending to Slack...")
             self._send_slack(title, message)
 
         # Send to Telegram if enabled
         if self.telegram_config.get("enabled", False):
+            logger.info("Sending to Telegram...")
             self._send_telegram(title, message)
 
     def _send_slack(self, title, message):
@@ -329,6 +339,11 @@ class DockerHealthMonitor:
         prev_status = previous_state.get("status")
         prev_health = previous_state.get("health")
 
+        # Debug: Log state check
+        logger.debug(f"Checking state change for {container.name}: "
+                    f"prev_status={prev_status}, current_status={current_status}, "
+                    f"prev_health={prev_health}, current_health={current_health}")
+
         # Check for ANY state change
         state_changed = False
         change_messages = []
@@ -356,6 +371,7 @@ class DockerHealthMonitor:
 
         # Send notification if ANY change detected
         if state_changed:
+            logger.info(f"State changed for {container.name}: {change_messages}")
             container_name = container.name
             labels = container.attrs.get('Config', {}).get('Labels', {})
             service_name = labels.get('com.docker.compose.service', 'N/A')
@@ -380,6 +396,8 @@ class DockerHealthMonitor:
                 title = "ℹ️ Container State Changed"
 
             self.notification_manager.send_notification(title, message)
+        else:
+            logger.debug(f"No state change for {container.name}")
 
     def restart_container(self, container):
         """
