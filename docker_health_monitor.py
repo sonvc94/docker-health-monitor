@@ -404,8 +404,14 @@ class DockerHealthMonitor:
         container_status = container.status
         health_status = self.get_container_health(container)
 
-        # Check for state changes and send notifications
+        # Check for state changes and send notifications (for ALL containers)
         self.check_and_notify_state_change(container, container_status, health_status)
+
+        # Only track health and restart running containers
+        # Stopped containers will be handled by auto-start feature
+        if container_status != 'running':
+            logger.debug(f"Container '{container_name}' is not running (status: {container_status}), skipping health check")
+            return
 
         logger.info(f"Container '{container_name}' health status: {health_status}")
 
@@ -479,13 +485,13 @@ class DockerHealthMonitor:
 
     def get_compose_containers(self):
         """
-        Get all containers managed by docker-compose.
+        Get all containers managed by docker-compose (including stopped ones).
 
         Returns:
             list: List of Docker container objects
         """
-        # Get all running containers
-        containers = self.client.containers.list(all=False)
+        # Get ALL containers (running, stopped, exited, paused, etc.)
+        containers = self.client.containers.list(all=True)
 
         # Filter containers that are part of a compose project
         # (have com.docker.compose.project label)
@@ -510,11 +516,11 @@ class DockerHealthMonitor:
                     # Check and start stopped services first
                     self.check_and_start_stopped_services()
 
-                    # Then monitor health of running containers
+                    # Then monitor health of all containers
                     containers = self.get_compose_containers()
 
                     if not containers:
-                        logger.warning("No Docker Compose containers found running")
+                        logger.warning("No Docker Compose containers found")
                     else:
                         logger.info(f"Monitoring {len(containers)} Docker Compose container(s)")
                         for container in containers:
