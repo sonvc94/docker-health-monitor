@@ -348,22 +348,17 @@ class DockerHealthMonitor:
         state_changed = False
         change_messages = []
 
-        # First time seeing this container
-        if prev_status is None:
-            state_changed = True
-            change_messages.append(f"Container started monitoring with status: `{current_status}`, health: `{current_health}`")
-
-        # Check status change
+        # Check status change (only if we have a previous state)
         if prev_status is not None and prev_status != current_status:
             state_changed = True
             change_messages.append(f"Status changed from `{prev_status}` to `{current_status}`")
 
-        # Check health change (independent of status change)
+        # Check health change (only if we have a previous state)
         if prev_health is not None and prev_health != current_health:
             state_changed = True
             change_messages.append(f"Health changed from `{prev_health}` to `{current_health}`")
 
-        # Update previous state
+        # Update previous state (always save current state)
         self.previous_states[container_key] = {
             "status": current_status,
             "health": current_health
