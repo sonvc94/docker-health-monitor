@@ -242,15 +242,13 @@ class NotificationManager:
             logger.warning("Telegram bot token or chat ID not configured")
             return
 
-        # Format message with Markdown
-        formatted_message = f"*{title}*\n\n{message}"
-        formatted_message = formatted_message.replace("*", "\\*").replace("_", "\\_").replace("[", "\\[").replace("]", "\\]")
+        # Format message without parse_mode to avoid escaping issues
+        formatted_message = f"{title}\n\n{message}"
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {
             "chat_id": chat_id,
-            "text": formatted_message,
-            "parse_mode": "MarkdownV2"
+            "text": formatted_message
         }
 
         try:
