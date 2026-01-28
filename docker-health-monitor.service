@@ -1,0 +1,22 @@
+[Unit]
+Description=Docker Compose Health Monitor
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/docker-health-monitor
+ExecStart=/usr/bin/python3 /opt/docker-health-monitor/docker_health_monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=docker-health-monitor
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

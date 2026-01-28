@@ -1,0 +1,13 @@
+/opt/autoheal/docker_health_monitor.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    postrotate
+        # Send SIGUSR1 to reopen log file (if using FileHandler with reopen)
+        systemctl reload docker-health-monitor > /dev/null 2>&1 || true
+    endscript
+}
